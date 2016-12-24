@@ -1,8 +1,11 @@
 package line
 
 import (
+	"errors"
 	"log"
 	"net/http"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/line/line-bot-sdk-go/linebot"
@@ -13,6 +16,8 @@ type Broker struct {
 	Client *linebot.Client
 	Config Config
 	inst   string
+	i2u    map[string]string // id->name cache
+	mutex  sync.Mutex
 }
 
 type Config struct {
@@ -33,7 +38,20 @@ func (c Config) NewBroker(name string) Broker {
 		Client: client,
 		Config: c,
 		inst:   name,
+		i2u:    make(map[string]string),
 	}
+}
+
+func (b Broker) reply(evt hal.Evt) error {
+	switch event := evt.Original.(type) {
+	case *linebot.Event:
+		if _, err := b.Client.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(evt.Body)).Do(); err != nil {
+			return err
+		}
+	default:
+		return errors.New("Missing original event")
+	}
+	return nil
 }
 
 func (b Broker) Name() string {
@@ -41,50 +59,92 @@ func (b Broker) Name() string {
 }
 
 func (b Broker) Send(evt hal.Evt) {
-	event := evt.Original.(*linebot.Event)
-	if _, err := b.Client.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(evt.Body)).Do(); err != nil {
+	if err := b.reply(evt); err != nil {
 		log.Printf("Failed to send message: %s\n", err)
 	}
 }
 
 func (b Broker) SendTable(evt hal.Evt, header []string, rows [][]string) {
-
+	body := ""
+	body += strings.Join(header, " │ ") + "\n"
+	body += "──────────────────\n"
+	for _, row := range rows {
+		body += strings.Join(row, " │ ") + "\n"
+	}
+	out := evt.Clone()
+	out.Body = body
+	if err := b.reply(out); err != nil {
+		log.Printf("Failed to send table message: %s\n", err)
+	}
 }
 
 func (b Broker) SendDM(evt hal.Evt) {
-
+	if _, err := b.Client.PushMessage(evt.UserId, linebot.NewTextMessage(evt.Body)).Do(); err != nil {
+		log.Printf("Failed to send direct message: %s\n", err)
+	}
 }
 
 func (b Broker) SetTopic(roomId, topic string) error {
+	log.Println("line/SetTopic() is a stub")
 	return nil
 }
 
 func (b Broker) GetTopic(roomId string) (topic string, err error) {
+	log.Println("line/GetTopic() is a stub")
 	return "", nil
 }
 
+func (b Broker) Leave(roomId string) error {
+	_, err := b.Client.LeaveRoom(roomId).Do()
+	return err
+}
+
 func (b Broker) LooksLikeRoomId(room string) bool {
-	return false
+	log.Println("line/LooksLikeRoomId() is a stub that always return true!")
+	return true
 }
 
 func (b Broker) LooksLikeUserId(user string) bool {
-	return false
+	log.Println("line/LooksLikeUserId() is a stub that always return true!")
+	return true
 }
 
 func (b Broker) RoomIdToName(id string) (name string) {
-	return ""
+	log.Println("line/RoomIdToName() is a stub that always return with input id!")
+	return id
 }
 
 func (b Broker) RoomNameToId(name string) (id string) {
-	return ""
+	log.Println("line/RoomNameToId() is a stub that always return with input name!")
+	return name
 }
 
 func (b Broker) UserIdToName(id string) (name string) {
-	return ""
+	b.mutex.Lock()
+	name, exists := b.i2u[id]
+	b.mutex.Unlock()
+
+	if exists {
+		return name
+	} else {
+		profile, err := b.Client.GetProfile(id).Do()
+		if err != nil {
+			log.Printf("line could not retrieve user profile for '%s': %s\n", id, err)
+			return ""
+		}
+
+		b.mutex.Lock()
+		defer b.mutex.Unlock()
+
+		b.i2u[id] = profile.DisplayName
+
+		return profile.DisplayName
+	}
 }
 
 func (b Broker) UserNameToId(name string) (id string) {
-	return ""
+	log.Println("line/UserNameToId() is a stub that always return with input name!")
+	return name
 }
 
 func (b Broker) Stream(out chan *hal.Evt) {
@@ -121,7 +181,7 @@ func (b Broker) Stream(out chan *hal.Evt) {
 					Body:     message.Text,
 					Room:     event.Source.RoomID,
 					RoomId:   event.Source.RoomID,
-					User:     event.Source.UserID,
+					User:     b.UserIdToName(event.Source.UserID),
 					UserId:   event.Source.UserID,
 					Time:     time.Now(),
 					Broker:   b,
