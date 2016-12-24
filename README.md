@@ -10,13 +10,13 @@ go get -u github.com/minchao/hal-9001-line
 
 ## Using line broker
 
-```
+```go
 import "github.com/minchao/hal-9001-line/line"
 ```
 
 Configure the line broker in the main.go of chatbot
 
-```
+```go
 func main() {
     // ...
     conf := line.Config{
