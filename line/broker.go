@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/line/line-bot-sdk-go/linebot"
 	"github.com/netflix/hal-9001/hal"
@@ -176,14 +175,24 @@ func (b Broker) Stream(out chan *hal.Evt) {
 		if event.Type == linebot.EventTypeMessage {
 			switch message := event.Message.(type) {
 			case *linebot.TextMessage:
+				var roomId string
+				switch event.Source.Type {
+				case linebot.EventSourceTypeGroup:
+					roomId = event.Source.GroupID
+				case linebot.EventSourceTypeRoom:
+					roomId = event.Source.RoomID
+				case linebot.EventSourceTypeUser:
+					roomId = event.Source.UserID
+				}
+
 				out <- &hal.Evt{
 					ID:       message.ID,
 					Body:     message.Text,
-					Room:     event.Source.RoomID,
-					RoomId:   event.Source.RoomID,
+					Room:     roomId,
+					RoomId:   roomId,
 					User:     b.UserIdToName(event.Source.UserID),
 					UserId:   event.Source.UserID,
-					Time:     time.Now(),
+					Time:     event.Timestamp,
 					Broker:   b,
 					IsChat:   true,
 					Original: event,
