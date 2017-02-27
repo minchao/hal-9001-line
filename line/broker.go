@@ -27,6 +27,10 @@ type Config struct {
 	Listen string
 }
 
+func init() {
+	log.SetPrefix("brokers/line")
+}
+
 func (c Config) NewBroker(name string) Broker {
 	client, err := linebot.New(
 		c.Secret,
@@ -86,12 +90,12 @@ func (b Broker) SendDM(evt hal.Evt) {
 }
 
 func (b Broker) SetTopic(roomId, topic string) error {
-	log.Println("line/SetTopic() is a stub")
+	log.Println("SetTopic() is a stub")
 	return nil
 }
 
 func (b Broker) GetTopic(roomId string) (topic string, err error) {
-	log.Println("line/GetTopic() is a stub")
+	log.Println("GetTopic() is a stub")
 	return "", nil
 }
 
@@ -101,28 +105,28 @@ func (b Broker) Leave(roomId string) error {
 }
 
 func (b Broker) LooksLikeRoomId(room string) bool {
-	log.Println("line/LooksLikeRoomId() is a stub that always return true!")
+	log.Println("LooksLikeRoomId() is a stub that always return true!")
 	return true
 }
 
 func (b Broker) LooksLikeUserId(user string) bool {
-	log.Println("line/LooksLikeUserId() is a stub that always return true!")
+	log.Println("LooksLikeUserId() is a stub that always return true!")
 	return true
 }
 
 func (b Broker) RoomIdToName(id string) (name string) {
-	log.Println("line/RoomIdToName() is a stub that always return with input id!")
+	log.Println("RoomIdToName() is a stub that always return with input id!")
 	return id
 }
 
 func (b Broker) RoomNameToId(name string) (id string) {
-	log.Println("line/RoomNameToId() is a stub that always return with input name!")
+	log.Println("RoomNameToId() is a stub that always return with input name!")
 	return name
 }
 
 func (b Broker) UserIdToName(id string) (name string) {
 	if id == "" {
-		log.Debugf("UserIdToName cannot look up empty string!")
+		log.Debugf("UserIdToName() cannot look up empty string!")
 		return ""
 	}
 
@@ -135,7 +139,7 @@ func (b Broker) UserIdToName(id string) (name string) {
 	} else {
 		profile, err := b.Client.GetProfile(id).Do()
 		if err != nil {
-			log.Printf("line could not retrieve user profile for '%s': %s\n", id, err)
+			log.Printf("Could not retrieve user profile for '%s': %s\n", id, err)
 			return ""
 		}
 
@@ -149,7 +153,7 @@ func (b Broker) UserIdToName(id string) (name string) {
 }
 
 func (b Broker) UserNameToId(name string) (id string) {
-	log.Println("line/UserNameToId() is a stub that always return with input name!")
+	log.Println("UserNameToId() is a stub that always return with input name!")
 	return name
 }
 
