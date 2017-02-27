@@ -2,6 +2,7 @@ package line
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"sync"
@@ -179,23 +180,23 @@ func (b Broker) Stream(out chan *hal.Evt) {
 
 	for event := range incoming {
 		if event.Type == linebot.EventTypeMessage {
+			var roomId string
+			switch event.Source.Type {
+			case linebot.EventSourceTypeGroup:
+				roomId = event.Source.GroupID
+			case linebot.EventSourceTypeRoom:
+				roomId = event.Source.RoomID
+			case linebot.EventSourceTypeUser:
+				roomId = event.Source.UserID
+			}
+
+			var user string
+			if event.Source.UserID != "" {
+				user = b.UserIdToName(event.Source.UserID)
+			}
+
 			switch message := event.Message.(type) {
 			case *linebot.TextMessage:
-				var roomId string
-				switch event.Source.Type {
-				case linebot.EventSourceTypeGroup:
-					roomId = event.Source.GroupID
-				case linebot.EventSourceTypeRoom:
-					roomId = event.Source.RoomID
-				case linebot.EventSourceTypeUser:
-					roomId = event.Source.UserID
-				}
-
-				var user string
-				if event.Source.UserID != "" {
-					user = b.UserIdToName(event.Source.UserID)
-				}
-
 				out <- &hal.Evt{
 					ID:       message.ID,
 					Body:     message.Text,
@@ -208,6 +209,21 @@ func (b Broker) Stream(out chan *hal.Evt) {
 					IsChat:   true,
 					Original: event,
 				}
+
+			case *linebot.LocationMessage:
+				out <- &hal.Evt{
+					ID:       message.ID,
+					Body:     fmt.Sprintf("%v: %v", message.Title, message.Address),
+					Room:     roomId,
+					RoomId:   roomId,
+					User:     user,
+					UserId:   event.Source.UserID,
+					Time:     event.Timestamp,
+					Broker:   b,
+					IsChat:   true,
+					Original: event,
+				}
+
 			default:
 				log.Printf("Unhandled message of type '%T': %s ", message, message)
 			}
