@@ -120,6 +120,11 @@ func (b Broker) RoomNameToId(name string) (id string) {
 }
 
 func (b Broker) UserIdToName(id string) (name string) {
+	if id == "" {
+		log.Debugf("UserIdToName cannot look up empty string!")
+		return ""
+	}
+
 	b.mutex.Lock()
 	name, exists := b.i2u[id]
 	b.mutex.Unlock()
@@ -186,12 +191,17 @@ func (b Broker) Stream(out chan *hal.Evt) {
 					roomId = event.Source.UserID
 				}
 
+				var user string
+				if event.Source.UserID != "" {
+					user = b.UserIdToName(event.Source.UserID)
+				}
+
 				out <- &hal.Evt{
 					ID:       message.ID,
 					Body:     message.Text,
 					Room:     roomId,
 					RoomId:   roomId,
-					User:     b.UserIdToName(event.Source.UserID),
+					User:     user,
 					UserId:   event.Source.UserID,
 					Time:     event.Timestamp,
 					Broker:   b,
