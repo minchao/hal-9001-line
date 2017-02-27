@@ -2,7 +2,6 @@ package line
 
 import (
 	"errors"
-	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -10,6 +9,8 @@ import (
 	"github.com/line/line-bot-sdk-go/linebot"
 	"github.com/netflix/hal-9001/hal"
 )
+
+var log hal.Logger
 
 type Broker struct {
 	Client *linebot.Client
@@ -167,7 +168,7 @@ func (b Broker) Stream(out chan *hal.Evt) {
 		})
 		// For actual use, you must support HTTPS by using `ListenAndServeTLS`, a reverse proxy or something else.
 		if err := http.ListenAndServe(b.Config.Listen, nil); err != nil {
-			log.Fatal(err)
+			log.Fatalf("http.ListenAndServe error: %v", err)
 		}
 	}()
 
