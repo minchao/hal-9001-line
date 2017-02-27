@@ -214,6 +214,15 @@ func (b Broker) Stream(out chan *hal.Evt) {
 					Original: event,
 				}
 
+			case *linebot.ImageMessage:
+				// ignored
+
+			case *linebot.VideoMessage:
+				// ignored
+
+			case *linebot.AudioMessage:
+				// ignored
+
 			case *linebot.LocationMessage:
 				out <- &hal.Evt{
 					ID:       message.ID,
@@ -227,6 +236,15 @@ func (b Broker) Stream(out chan *hal.Evt) {
 					IsChat:   true,
 					Original: event,
 				}
+
+			case *linebot.StickerMessage:
+				// ignored
+
+			case *linebot.TemplateMessage:
+				// ignored
+
+			case *linebot.ImagemapMessage:
+				// ignored
 
 			default:
 				log.Printf("Unhandled message of type '%T': %s ", message, message)
