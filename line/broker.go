@@ -100,6 +100,7 @@ func (b Broker) GetTopic(roomId string) (topic string, err error) {
 }
 
 func (b Broker) Leave(roomId string) error {
+	// TODO Group or Room ?
 	_, err := b.Client.LeaveRoom(roomId).Do()
 	return err
 }
@@ -183,7 +184,8 @@ func (b Broker) Stream(out chan *hal.Evt) {
 	}()
 
 	for event := range incoming {
-		if event.Type == linebot.EventTypeMessage {
+		switch event.Type {
+		case linebot.EventTypeMessage:
 			var roomId string
 			switch event.Source.Type {
 			case linebot.EventSourceTypeGroup:
@@ -247,8 +249,61 @@ func (b Broker) Stream(out chan *hal.Evt) {
 				// ignored
 
 			default:
-				log.Printf("Unhandled message of type '%T': %s ", message, message)
+				log.Debugf("Unhandled message of type '%T': %s ", message, message)
 			}
+
+		case linebot.EventTypeFollow:
+			user := b.UserIdToName(event.Source.UserID)
+
+			out <- &hal.Evt{
+				ID:       event.Timestamp.String(),
+				Body:     fmt.Sprintf("Got %s followed event", user),
+				Room:     event.Source.UserID,
+				RoomId:   event.Source.UserID,
+				User:     user,
+				UserId:   event.Source.UserID,
+				Time:     event.Timestamp,
+				Broker:   b,
+				Original: event,
+			}
+
+		case linebot.EventTypeUnfollow:
+			user := b.UserIdToName(event.Source.UserID)
+
+			out <- &hal.Evt{
+				ID:       event.Timestamp.String(),
+				Body:     fmt.Sprintf("Got %s unfollowed event", user),
+				Room:     event.Source.UserID,
+				RoomId:   event.Source.UserID,
+				User:     user,
+				UserId:   event.Source.UserID,
+				Time:     event.Timestamp,
+				Broker:   b,
+				Original: event,
+			}
+
+		case linebot.EventTypeJoin:
+			out <- &hal.Evt{
+				ID:       event.Timestamp.String(),
+				Body:     fmt.Sprintf("Got joined %s event", string(event.Source.Type)),
+				Room:     event.Source.GroupID,
+				RoomId:   event.Source.GroupID,
+				Time:     event.Timestamp,
+				Broker:   b,
+				Original: event,
+			}
+
+		case linebot.EventTypeLeave:
+			log.Debugf("Got leave event: %+v", event)
+
+		case linebot.EventTypePostback:
+			log.Debugf("Got postback event: %+v", event.Postback.Data)
+
+		case linebot.EventTypeBeacon:
+			log.Debugf("Got beacon event: %+v", event)
+
+		default:
+			log.Debugf("Unknown event: %+v", event.Type)
 		}
 	}
 }
