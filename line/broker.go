@@ -48,13 +48,12 @@ func (c Config) NewBroker(name string) Broker {
 }
 
 func (b Broker) reply(evt hal.Evt) error {
-	switch event := evt.Original.(type) {
-	case *linebot.Event:
-		if _, err := b.Client.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(evt.Body)).Do(); err != nil {
-			return err
-		}
-	default:
+	event, ok := evt.Original.(*linebot.Event)
+	if !ok {
 		return errors.New("Missing original event")
+	}
+	if _, err := b.Client.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(evt.Body)).Do(); err != nil {
+		return err
 	}
 	return nil
 }
